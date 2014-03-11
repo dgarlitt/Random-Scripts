@@ -1,0 +1,39 @@
+[user]
+	name = My Name
+	email = someemail@addressfor.me
+[color]
+	ui = auto
+[core]
+	editor = /usr/bin/vim
+[alias]
+	st = status
+	ct = commit
+	cta = commit --amend
+	br = branch
+	co = checkout
+	df = diff
+	dfls = diff --name-status
+	bred = branch --edit-description
+	dt = difftool
+	mg = merge
+	mt = mergetool
+	lp = log --abbrev-commit --pretty=format:'%Cred%h%Creset - %Cgreen%an%Creset, %C(bold blue)%ar%Creset : %s%Creset%C(yellow)%d'
+	graph = log --graph --pretty=format:'%Cred%hCreset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+	brname = rev-parse --abbrev-ref HEAD
+	cp = cherry-pick
+	re = reset
+	resft = reset --soft
+	rehrd = reset --hard
+[diff]
+	tool = kdiff3
+[difftool "kdiff3"]
+	cmd = kdiff3
+[difftool]
+	trustExitCode = false
+[merge]
+	tool = kdiff3
+[mergetool "kdiff3"]
+	cmd = kdiff3
+[mergetool]
+	trustExitCode = false
+	keepBackup = false
