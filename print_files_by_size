@@ -1,0 +1,126 @@
+#!/usr/bin/python
+
+# You may need to change the path to python on your machine for this to work!
+# This script takes two arguments, a directory and a min threshold in kb:
+#       print_files_by_size ./ 1000
+#
+# The above will find all files in the current directory over the threshold of
+# 1000 kb and display them sorted in different ways on the command line.
+#
+# This is kind-of a quick and dirty script, so it's not perfect by any stretch.
+# You're welcome to make changes to it and submit them to me!
+
+import os
+import sys
+import getopt
+import os.path
+import time
+
+if len(sys.argv) < 3:
+    print "Root directory and threshold are required."
+    print "Read file comments for more details."
+    exit()
+
+rootdir = sys.argv[1]
+threshold = int(sys.argv[2])
+
+files_by_ext = {}
+
+file_list = []
+
+# You can exclude files with certain extensions from the results
+# ('.gif', '.jpg', '.jpeg', '.png', '.html', '.htm', '.css', '.js', '.txt')
+excluded_extensions = ()
+large_files = []
+last_modified = ""
+
+
+def add_file_by_ext(ext, full_file_path):
+    file_size_kb = (os.path.getsize(full_file_path) * 0.000976562)
+    if file_size_kb > threshold:
+        if ext == '':
+            ext = 'no_extension'
+        ext = ext.lower()
+        if ext not in excluded_extensions:
+            if ext not in files_by_ext:
+                files_by_ext[ext] = []
+
+            #last_modified = time.ctime(os.path.getmtime(full_file_path))
+            file_data_array = [full_file_path, file_size_kb]
+            large_files.append(file_data_array)
+            files_by_ext[ext].append(file_data_array)
+
+
+def walk_the_directory_tree():
+    for root, dirs, files in os.walk(rootdir):
+        # don't bother looking in .svn and .settings directories
+        if (root.find(".svn") == -1
+           and root.find(".settings") == -1
+           and root.find(".git") == -1):
+            for filename in files:
+                # split the extension out of the filename
+                ext = os.path.splitext(filename)[1]
+                if not root.endswith("/"):
+                    root = root + "/"
+                add_file_by_ext(ext, root + filename)
+
+
+def loop_and_print(array):
+    for data in array:
+        print "(%d kB) %s" % (data[1], data[0])
+
+
+def print_bars(char, count):
+    print char * count
+
+
+def print_title(text, char, count):
+    tbcount = int((count - len(text)) / 2) - 2
+    title_bar = (char * tbcount) + " " + text + " " + (char * tbcount)
+    while len(title_bar) < count:
+        title_bar += char
+    print title_bar
+
+
+def print_header(text, char, count):
+    print_bars(char, count)
+    print_title(text, char, count)
+    print_bars(char, count)
+
+
+def print_footer(char, count, padding):
+    padct = 0
+    print_bars(char, count)
+    while padct < padding:
+        print ""
+        padct += 1
+
+
+def print_file_results():
+    strthrsh = str(threshold) + " Kb"
+    print_header("MIN FILE SIZE THRESHOLD " + strthrsh, "#", 79)
+    print str(len(large_files)) + " files were found over the" + strthrsh
+    print_bars("#", 79)
+    print_bars("#", 79)
+    print_footer("#", 79, 2)
+
+    print_header("FILES SORTED BY DIR THEN SIZE", "#", 79)
+    loop_and_print(large_files)
+    print_footer("#", 79, 2)
+
+    print_header("FILES SORTED SMALLEST TO LARGEST", "#", 79)
+    large_files.sort(key=lambda pair: pair[1])
+    loop_and_print(large_files)
+    print_footer("#", 79, 2)
+
+    print_header("FILES SORTED BY EXT THEN SIZE", "#", 79)
+    for ext in sorted(files_by_ext.iterkeys()):
+        if len(ext) > 0:
+            print_title(ext + " (" + str(len(files_by_ext)) + ")", "#", 79)
+            loop_and_print(files_by_ext[ext])
+            print_footer("#", 79, 1)
+    print_footer("#", 79, 0)
+
+
+walk_the_directory_tree()
+print_file_results()
