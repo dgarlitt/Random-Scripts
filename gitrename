@@ -1,0 +1,169 @@
+#!/bin/bash
+
+dflag=false
+Fflag=false
+Mflag=false
+Pflag=false
+rflag=origin
+yflag=false
+
+ask() {
+    read -n 1 -r -p "$1"
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+            return 1;
+    else
+            exit
+            echo "Abort.."
+    fi
+}
+
+usage() {
+    echo "USAGE:"
+    echo "   gitrename oldbranch newbranch [-MF] [-r remote] [-P] [-d] [-y]"
+    echo ""
+    echo "You can use '.' to represent the currently checked-out branch:"
+    echo "   gitrename . newbranch"
+    echo ""
+    echo "This script is destructive in that it will delete the original"
+    echo "branch locally. It will not do anything destructive on the"
+    echo "remote unless arguments are provided to do so."
+    echo ""
+    echo "SAFE OPTIONS:"
+    echo "   -d = debug mode, outputs all flags that were passed in"
+    echo "   -r = name of the remote (defaults to origin)"
+    echo "   -y = dry run only"
+    echo ""
+    echo "DESTRUCTIVE OPTIONS:"
+    echo "   -F = force argument used in combination with the -m argument"
+    echo "   -M = master allowed as argument with -o or -n. For this"
+    echo "        argument to work the -a argument must be declared as"
+    echo "        well."
+    echo "   -P = push the new branch to the remote (defaults to false)."
+    echo "        This will delete the original branch from the remote if"
+    echo "        it exists."
+    echo "" 1>&2;
+    exit 1;
+}
+
+debugoutput() {
+    echo ""
+    echo "Debug mode: ON"
+    echo "oldbranch = ${oldbranch}"
+    echo "newbranch = ${newbranch}"
+    echo ""
+    echo "(-d) debug    = ${dflag}"
+    echo "(-r) remote   = ${rflag}"
+    echo "(-y) dry run  = ${yflag}"
+    echo "(-F) force    = ${Fflag}"
+    echo "(-M) master   = ${Mflag}"
+    echo "(-P) push     = ${Pflag}"
+    echo ""
+}
+
+dryrun() {
+    echo ""
+    echo "The following commands would have run:"
+    if [ "$oldbranch" != "." ]; then
+        echo "git checkout $oldbranch"
+    fi
+    echo "git checkout -b $newbranch"
+    echo "git branch -D $oldbranch"
+    if [ "$Pflag" == "true" ]; then
+        echo "git push $rflag :$oldbranch"
+        echo "git push $rflag $newbranch"
+    fi
+}
+
+renamebranch() {
+    echo ""
+    echo "Renaming $oldbranch to $newbranch..."
+    if [ "$oldbranch" != "." ]; then
+        git checkout $oldbranch
+    fi
+    git checkout -b $newbranch
+    git branch -D $oldbranch
+    if [ "$Pflag" == "true" ]; then
+        git push $rflag :$oldbranch
+        git push $rflag $newbranch
+    fi
+}
+
+if [[ -z "$1" ]] && [[ -z "$2" ]] || [[ "$1" == "help" ]]; then
+    usage
+fi
+
+oldbranch=$1
+shift
+newbranch=$1
+shift
+
+while getopts ":dr:yFMP" o; do
+    case "${o}" in
+        d)
+            dflag=true
+            ;;
+        r)
+            rflag=${OPTARG}
+            ;;
+        y)
+            yflag=true
+            ;;
+        F)
+            Fflag=true
+            ;;
+        M)
+            Mflag=true
+            ;;
+        P)
+            Pflag=true
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [ "$dflag" == "true" ]; then
+    debugoutput
+fi
+
+# Error if branch names are either empty or begin with a dash
+if [ -z "${oldbranch}" ] || [ -z "${newbranch}" ] || [[ $oldbranch == -* ]] || [[ $newbranch == -* ]]; then
+    echo "Invalid branch name"
+    exit 1
+fi
+
+if [ "${oldbranch}" == "." ]; then
+    oldbranch=$(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
+fi
+
+hasoldbranch=`git branch --list $oldbranch`
+if [ "${hasoldbranch}" == "" ]; then
+   echo "Branch name ${oldbranch} does not exist."
+   exit 1;
+fi
+
+if [ `git branch --list $newbranch` ]; then
+   echo "Branch name ${newbranch} already exists."
+   exit 1;
+fi
+
+if [ "${oldbranch}" == "${newbranch}" ]; then
+    echo "Both the old and new branch names are identical"
+    exit 1
+fi
+
+if [[ ( "${oldbranch}" == "master" || "${newbranch}" == "master" ) && ("${Mflag}" == "false" || "${Fflag}" == "false") ]]; then
+    echo "To use master as one of the branch names you must use both the -F and -M arguments"
+    echo "Example:"
+    echo "  gitrename oldbranch master -MF"
+    exit 1
+fi
+
+if [ "${yflag}" == "true" ]; then
+    dryrun
+else
+    ask "Are you sure you want to rename ${oldbranch} to ${newbranch}? [y/N]"
+    renamebranch
+fi
